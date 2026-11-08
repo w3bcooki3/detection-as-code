@@ -1,0 +1,10 @@
+# Test logs are pulled from EVTX-ATTACK-SAMPLES at build time (no binaries stored in this repo).
+# local name: path inside https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES
+comsvcs_minidump.evtx: Credential Access/sysmon_10_1_memdump_comsvcs_minidump.evtx
+mimikatz_sekurlsa.evtx: Credential Access/sysmon_10_lsass_mimikatz_sekurlsa_logonpasswords.evtx
+security_log_cleared.evtx: Defense Evasion/DE_1102_security_log_cleared.evtx
+psexec_meterpreter.evtx: Lateral Movement/LM_sysmon_psexec_smb_meterpreter.evtx
+benign_like_vshadow.evtx: Execution/sysmon_lolbin_bohops_vshadow_exec.evtx
+discovery_bloodhound.evtx: Discovery/discovery_bloodhound.evtx
+discovery_meterpreter_ps.evtx: Discovery/discovery_meterpreter_ps_cmd_process_listing_sysmon_10.evtx
+discovery_psloggedon.evtx: Discovery/discovery_psloggedon.evtx
