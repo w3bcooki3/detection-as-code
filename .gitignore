@@ -1,4 +1,5 @@
 .samples/
+.sigmahq/
 tests/logs/
 build/
 out/
