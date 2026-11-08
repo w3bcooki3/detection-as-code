@@ -46,6 +46,43 @@ Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com
 | Severity and routing | analyst judgment at 2 AM | consistent, from the playbook |
 | Write-up | typed by hand | posted on the case, ready for handoff |
 
+## What it can and can't do
+
+### Capabilities
+
+| Area | What it does today |
+|---|---|
+| Input | A Windows event log (`.evtx`): one of 5 built-in attack samples, or your own lab log uploaded as a zip |
+| Log types | Sysmon (process creation, process access, network, DNS) and the Windows Security and System logs |
+| Detection | 4 tested Sigma rules covering 3 ATT&CK techniques: LSASS credential dumping (T1003.001), hidden PowerShell (T1059.001), log clearing (T1070.001) |
+| Indicator extraction | File hashes (SHA256), IP addresses, domains, accounts and process names from the matching events and the same processes elsewhere in the log |
+| Enrichment | VirusTotal (files, IPs, domains), AbuseIPDB (IPs), MalwareBazaar (hashes), ThreatFox (IPs, domains) |
+| Decision | Severity from the playbook and rule level, raised one step when threat intel confirms something malicious |
+| Response | Routing (who handles it and how fast) plus containment steps per technique, from `playbooks/response.yml` |
+| Case handling | Posts the report, labels severity, verdict and technique, auto-closes benign cases |
+| Quality | Every rule is tested against real attack logs on every push, plus a smoke test of the bot |
+| Speed and cost | A report in under a minute, on free GitHub Actions and free API tiers |
+
+### Limitations
+
+- **Windows only.** No Linux, macOS, cloud (AWS, Azure, Microsoft 365), firewall, proxy or DNS server logs yet.
+- **Narrow coverage.** 4 rules for 3 techniques. Most attacks will come back as "no findings", which means "not covered", not "safe".
+- **Not real time.** Someone has to export a log and open an issue. It does not connect to a SIEM or EDR or watch live events.
+- **Recommends, does not act.** It never isolates hosts, disables accounts or blocks indicators. A human does that, by design.
+- **Free API limits.** VirusTotal allows 4 lookups a minute, so the bot caps each case at 8 lookups and checks at most 4 hashes. Large logs get partial enrichment.
+- **Indicators depend on the log.** If the log has no Sysmon process-creation events, there are no hashes to check (the Mimikatz sample is an example).
+- **Simple severity logic.** No correlation across cases, no deduplication, no asset or user context such as "this is a domain controller".
+- **Public by design.** Issues and uploads are visible to everyone, so it is for lab and sample data only, never real company logs.
+- **Upload limits.** One zipped `.evtx`, 20 MB max, 25 investigations a day.
+
+### Roadmap
+
+- More rules: RDP brute force, new service installs, scheduled tasks, encoded PowerShell, shadow copy deletion
+- Linux auth logs and Microsoft 365 sign-in logs
+- A metrics page: cases per day, time to report, verdict mix
+- Correlation: link cases that share a host, account or indicator
+- Notifications to Slack or Teams for critical cases
+
 ## How it works
 
 ```mermaid
