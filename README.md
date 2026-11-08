@@ -12,6 +12,40 @@ A working mini-SOC that runs entirely on GitHub, for free. Open an issue with a 
 
 Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES). You can also attach your own zipped `.evtx` from a lab. This repo is public, so never upload logs from a real company.
 
+## Real use case: a password-theft alert at 2 AM
+
+**The situation.** A SOC analyst on night shift gets an EDR alert from a laptop: `rundll32.exe` touched LSASS memory. The file is a signed Windows binary, so the antivirus says nothing. Is this an attack or noise?
+
+**Manually,** the analyst would pull the logs, read the process command line, copy hashes into VirusTotal and MalwareBazaar one by one, look up the ATT&CK technique, decide the severity, find the right runbook and write up the ticket. That's 20 to 30 minutes, at 2 AM, while the attacker keeps moving.
+
+**With this repo,** the analyst opens an investigation with the exported log. This is an excerpt of the real report the bot posted on [issue #3](https://github.com/w3bcooki3/detection-as-code/issues/3), 17 seconds later:
+
+> **Incident report: CRITICAL**
+>
+> | | |
+> |---|---|
+> | Host | `MSEDGEWIN10` |
+> | Detection | LSASS Memory Dump via comsvcs.dll MiniDump (T1003.001) |
+> | Process | `rundll32.exe` |
+> | Routing | escalate to incident response now |
+>
+> **Threat intel:** `rundll32.exe` hash, VirusTotal **0/75 engines flag it**, not in MalwareBazaar
+>
+> *Clean file hashes here usually mean living off the land: a legitimate Windows binary used for something malicious. The behaviour is the threat, not the file.*
+>
+> **Recommended response:** isolate the host with your EDR, reset passwords for every account that logged on (starting with admins), hunt for the same command line on other hosts, watch for new logons from these accounts for 72 hours.
+>
+> Labels added: `severity: critical` `verdict: malicious` `attack: T1003.001`
+
+**Why it matters.** A hash lookup alone would have called this clean (0/75). The detection rule caught the *behaviour*, the playbook turned it into a critical case with clear next steps, and the analyst went straight to containment instead of research.
+
+| | Manual triage | With the bot |
+|---|---|---|
+| Time to a verdict | 20 to 30 minutes | under a minute |
+| Threat intel lookups | copy and paste, one site at a time | automatic, every indicator |
+| Severity and routing | analyst judgment at 2 AM | consistent, from the playbook |
+| Write-up | typed by hand | posted on the case, ready for handoff |
+
 ## How it works
 
 ```mermaid
