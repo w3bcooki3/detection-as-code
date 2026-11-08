@@ -41,3 +41,89 @@ routing:
   medium: tier 1 review within 4 hours
   low: tier 1 review within 24 hours
   info: auto-close after review
+# Fallback when a community rule fires for a technique with no specific entry above.
+tactics:
+  initial-access:
+    tactic: Initial Access
+    severity: high
+    why: Something may have just gotten in. Find the entry point before it is reused.
+    contain:
+      - Identify the entry point (email, exposed service, removable media, valid account)
+      - Block the source and reset any credentials used
+  execution:
+    tactic: Execution
+    severity: medium
+    why: Code ran in a way attackers often use. Confirm what ran and who started it.
+    contain:
+      - Review the full command line and parent process
+      - Check the host for persistence and outbound connections around the same time
+  persistence:
+    tactic: Persistence
+    severity: high
+    why: Something set itself up to survive a reboot.
+    contain:
+      - Remove the persistence item (service, scheduled task, run key) after collecting evidence
+      - Find what created it and check other hosts for the same item
+  privilege-escalation:
+    tactic: Privilege Escalation
+    severity: high
+    why: A process may have gained higher rights than it should have.
+    contain:
+      - Identify the account and process that gained privileges
+      - Check for new admin accounts or group membership changes
+  defense-evasion:
+    tactic: Defense Evasion
+    severity: high
+    why: Something tried to hide or disable security controls.
+    contain:
+      - Confirm security tools and logging are still running on the host
+      - Pull forwarded logs from the SIEM in case local logs were tampered with
+  credential-access:
+    tactic: Credential Access
+    severity: critical
+    why: Credentials may have been stolen.
+    contain:
+      - Isolate the host and reset passwords for accounts used on it
+      - Watch for those accounts logging on elsewhere
+  discovery:
+    tactic: Discovery
+    severity: medium
+    why: Someone is mapping the environment, often a step before lateral movement.
+    contain:
+      - Identify the account running the discovery commands and whether that is normal for it
+      - Look for lateral movement from this host in the following hours
+  lateral-movement:
+    tactic: Lateral Movement
+    severity: high
+    why: Activity is spreading between hosts.
+    contain:
+      - Identify source and destination hosts and isolate both if confirmed
+      - Reset credentials used for the remote access
+  collection:
+    tactic: Collection
+    severity: high
+    why: Data may be being gathered for theft.
+    contain:
+      - Identify what data was accessed and where it was staged
+      - Check for outbound transfers from the host
+  command-and-control:
+    tactic: Command and Control
+    severity: high
+    why: The host may be talking to an attacker.
+    contain:
+      - Block the destination at the proxy, firewall and DNS
+      - Isolate the host and search for other hosts contacting the same destination
+  exfiltration:
+    tactic: Exfiltration
+    severity: critical
+    why: Data may be leaving the network.
+    contain:
+      - Block the destination and isolate the host
+      - Work out what data left and start your data breach process
+  impact:
+    tactic: Impact
+    severity: critical
+    why: Something is destroying, encrypting or disrupting systems or data.
+    contain:
+      - Isolate affected hosts immediately to stop spread
+      - Start the ransomware or disaster recovery runbook and protect backups
