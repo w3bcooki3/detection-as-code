@@ -1,0 +1,58 @@
+name: triage
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+  contents: read
+concurrency:
+  group: triage
+  cancel-in-progress: false
+jobs:
+  investigate:
+    if: contains(github.event.issue.body, '### Sample attack')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Daily cap (protects the free API quotas)
+        id: cap
+        run: |
+          n=$(gh issue list -R "$REPO" --state all --search "in:body \"### Sample attack\" created:>=$(date -u +%F)" --json number --jq length)
+          if [ "$n" -gt 25 ]; then
+            gh issue comment "$ISSUE" -R "$REPO" --body "Daily limit of 25 investigations reached. Please try again tomorrow (UTC)."
+            echo "capped=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Acknowledge
+        if: steps.cap.outputs.capped != 'true'
+        run: gh issue comment "$ISSUE" -R "$REPO" --body "Investigating. The incident report will be posted here in about two minutes."
+      - uses: actions/setup-python@v5
+        if: steps.cap.outputs.capped != 'true'
+        with: { python-version: "3.12" }
+      - name: Install Chainsaw
+        if: steps.cap.outputs.capped != 'true'
+        run: |
+          curl -sSL -o cs.tgz https://github.com/WithSecureLabs/chainsaw/releases/download/v2.10.1/chainsaw_x86_64-unknown-linux-gnu.tar.gz
+          tar xzf cs.tgz
+          pip install pyyaml
+      - name: Detect, enrich, apply playbook
+        if: steps.cap.outputs.capped != 'true'
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          ABUSECH_AUTH_KEY: ${{ secrets.ABUSECH_AUTH_KEY }}
+        run: python scripts/triage.py
+      - name: Post report, label and route
+        if: steps.cap.outputs.capped != 'true'
+        run: |
+          gh issue comment "$ISSUE" -R "$REPO" --body-file out/report.md
+          IFS=',' read -ra L < out/labels.txt
+          for l in "${L[@]}"; do
+            gh label create "$l" -R "$REPO" --force --color "$(case "$l" in *critical*) echo B60205;; *high*) echo D93F0B;; *medium*) echo FBCA04;; *benign*|*info*) echo 0E8A16;; *) echo 5319E7;; esac)" >/dev/null
+            gh issue edit "$ISSUE" -R "$REPO" --add-label "$l"
+          done
+          if [ "$(cat out/close.txt)" = "yes" ]; then gh issue close "$ISSUE" -R "$REPO" --reason "not planned"; fi
