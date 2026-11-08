@@ -1,57 +1,70 @@
-# Detection-as-code
+# SOC in a repo
 
-Sigma detection rules that have to prove themselves before they ship. Every rule must catch a real attack recording and stay silent on every other log. GitHub Actions checks this on every push.
+A working mini-SOC that runs entirely on GitHub, for free. Open an issue with a Windows log and a bot detects the attack, enriches what it finds with threat intel, applies a response playbook and posts an incident report.
 
 ![detections](https://github.com/w3bcooki3/detection-as-code/actions/workflows/detections.yml/badge.svg)
 
-## Why
+## Try it (about two minutes)
 
-Most detections are written straight into a SIEM console and never tested. A wrong log source makes a rule silently blind, a loose condition makes it so noisy that analysts ignore it, and nobody notices either way. Here every rule lives in Git, ships with proof, and fails the build if it misses its attack or fires on clean logs.
+1. Go to **[New investigation](https://github.com/w3bcooki3/detection-as-code/issues/new?template=investigate.yml)**
+2. Pick a sample attack, for example *Mimikatz stealing passwords from LSASS*
+3. Submit. The bot replies with an incident report: timeline, ATT&CK techniques, enriched indicators, severity, routing and response steps
+
+Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES). You can also attach your own zipped `.evtx` from a lab. This repo is public, so never upload logs from a real company.
 
 ## How it works
 
 ```mermaid
 flowchart TD
-  A["New attack technique<br/>(intel, incident, red team)"] --> B["Write Sigma rule"]
-  B --> C["Add proof: attack log it must catch"]
-  C --> D["Push / pull request"]
-  D --> F{"CI test gate<br/>every rule x every log"}
-  F -- "missed the attack" --> B
-  F -- "fired on clean logs" --> B
-  F -- "all checks pass" --> G["Merge"]
-  G --> H["Splunk and Elastic queries"]
-  G --> I["ATT&CK coverage layer"]
+  A["Issue opened<br/>sample attack or uploaded log"] --> B["Detection<br/>Sigma rules run by Chainsaw"]
+  B -- "no rule fires" --> Z["Report: benign<br/>auto-close"]
+  B -- "rules fire" --> C["Extract indicators<br/>hashes, IPs, domains, accounts"]
+  C --> D["Enrichment<br/>VirusTotal, AbuseIPDB, MalwareBazaar, ThreatFox"]
+  D --> E["Playbook<br/>severity, routing, response steps per ATT&CK technique"]
+  E --> F["Incident report posted<br/>labels: severity, verdict, technique"]
+  R["Rule change pushed"] --> T{"Test gate<br/>every rule x every attack log"}
+  T -- "missed attack or false alarm" --> X["Build fails"]
+  T -- "pass" --> B
 ```
+
+Two loops:
+
+- **Response loop.** Every issue is a case. Detection, enrichment, playbook and report run in GitHub Actions with no server.
+- **Engineering loop.** Every rule must catch a real attack and stay silent on everything else before it can reach the bot. 4 rules x 8 logs = 32 checks on every push.
 
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `rules/` | One Sigma rule per file, tagged with MITRE ATT&CK |
-| `tests/logs.yml` | Test logs, pulled from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES) at build time |
-| `tests/expected.yml` | Which rule must fire on which log. Every other pair must stay silent |
-| `scripts/run_tests.py` | Runs [Chainsaw](https://github.com/WithSecureLabs/chainsaw) for every rule and log, converts rules with pySigma, builds the ATT&CK layer |
-| `.github/workflows/detections.yml` | Runs everything on every push |
+| `rules/` | Sigma detection rules, tagged with MITRE ATT&CK |
+| `playbooks/response.yml` | Response playbook: severity, routing and containment steps per technique |
+| `scripts/triage.py` | The bot: detect, extract indicators, enrich, apply playbook, write the report |
+| `scripts/run_tests.py` | Test gate for the rules, plus Splunk and Elastic query conversion and an ATT&CK layer |
+| `tests/expected.yml` | Which rule must fire on which attack log |
+| `.github/workflows/triage.yml` | Runs the bot when an investigation issue is opened |
+| `.github/workflows/detections.yml` | Runs the test gate and a smoke test of the bot on every push |
 
-## Current rules
+## Current detections
 
-| Rule | ATT&CK | Must catch |
+| Rule | ATT&CK | Playbook severity |
 |---|---|---|
-| LSASS memory dump via comsvcs.dll MiniDump | T1003.001 | rundll32 comsvcs MiniDump |
-| Suspicious process access to LSASS | T1003.001 | Mimikatz sekurlsa, Meterpreter |
-| Security event log cleared (1102) | T1070.001 | Log clear |
-| Hidden PowerShell without profile | T1059.001 | PsExec + Meterpreter stager |
+| LSASS memory dump via comsvcs.dll MiniDump | T1003.001 | critical |
+| Suspicious process access to LSASS | T1003.001 | critical |
+| Hidden PowerShell without profile | T1059.001 | high |
+| Security event log cleared (1102) | T1070.001 | high |
 
-4 rules x 8 logs = 32 checks, all passing.
+## What the test gate caught
 
-## What the gate caught
+- **Blind rule.** The first log-cleared rule never fired. Event 1102 is written by the Eventlog provider, not Security-Auditing, so the log source was wrong.
+- **Mislabelled sample.** The LSASS rule fired on a sample labelled "discovery". The hit was `D:\m.exe` (Meterpreter) opening LSASS with `0x1410`, a real credential theft. The rule was right and became a required catch.
 
-- **Blind rule.** The first log-cleared rule never fired. Event 1102 is written by the Eventlog provider, not Security-Auditing, so the log source was wrong. Fixed with `service: eventlog` and `Provider_Name`.
-- **Mislabelled sample.** The LSASS rule fired on a sample labelled "discovery". The hit was `D:\m.exe` (Meterpreter) opening LSASS with `0x1410`, a real credential theft. The rule was right, so the sample became a required catch.
+## Guard rails
 
-## Run locally
+- At most 25 investigations a day, so nobody can burn the free API quotas
+- Private IP addresses are never sent to threat intel services
+- Uploaded files: zip only, one `.evtx`, 20 MB cap, no path traversal
+- The issue body is parsed as data and never executed
 
-    python scripts/fetch_logs.py
-    python scripts/run_tests.py path/to/chainsaw path/to/chainsaw/mappings/sigma-event-logs-all.yml
+## Setup for your own copy
 
-Outputs land in `build/`: test results, SIEM queries and `attack_layer.json` for [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/).
+Fork it, then add free API keys under **Settings > Secrets and variables > Actions**: `VT_API_KEY` (VirusTotal), `ABUSEIPDB_API_KEY` (AbuseIPDB), `ABUSECH_AUTH_KEY` (abuse.ch). Without keys the bot still detects and reports, and marks enrichment as skipped.
