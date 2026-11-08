@@ -1,0 +1,4 @@
+.samples/
+tests/logs/
+build/
+__pycache__/
