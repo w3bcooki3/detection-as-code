@@ -1,0 +1,43 @@
+# Response playbook: what to do when a detection for each ATT&CK technique fires.
+# The triage bot reads this file. Edit the steps here, not in code.
+techniques:
+  T1003.001:
+    name: OS Credential Dumping - LSASS Memory
+    tactic: Credential Access
+    stage: Actions on objectives
+    severity: critical
+    why: Attacker is stealing passwords and hashes from memory. Every account that logged on to this host should be treated as exposed.
+    contain:
+      - Isolate the host from the network with your EDR
+      - Reset passwords for every account that logged on to the host, starting with admins
+      - Hunt for the same tool or command line on other hosts in the SIEM
+      - Look for new logons from these accounts in the next 72 hours
+  T1059.001:
+    name: Command and Scripting Interpreter - PowerShell
+    tactic: Execution
+    stage: Installation
+    severity: high
+    why: Hidden, profile-less PowerShell is how most stagers and loaders start. Check what it ran and what it connected to.
+    contain:
+      - Pull the full command line and any PowerShell 4104 script block logs
+      - Check network connections from the PowerShell process and block the destination
+      - Review the parent process to find the initial access path
+      - Isolate the host if a payload was downloaded or injected
+  T1070.001:
+    name: Indicator Removal - Clear Windows Event Logs
+    tactic: Defense Evasion
+    stage: Actions on objectives
+    severity: high
+    why: Someone wiped the evidence. Clearing the Security log is rare outside planned maintenance.
+    contain:
+      - Confirm with the change calendar whether this was planned maintenance
+      - Pull forwarded copies of the logs from the SIEM before they age out
+      - Identify the account that cleared the log and review its recent activity
+      - Treat the host as compromised until proven otherwise
+severity_order: [info, low, medium, high, critical]
+routing:
+  critical: escalate to incident response now
+  high: escalate to tier 2 within 1 hour
+  medium: tier 1 review within 4 hours
+  low: tier 1 review within 24 hours
+  info: auto-close after review
