@@ -1,0 +1,20 @@
+title: Windows Security Event Log Cleared
+id: 3c7e9a2d-4b18-4e6f-a1c5-9d8b7e6f5a03
+status: test
+description: Detects the Security event log being cleared, a common step attackers take to hide their tracks.
+author: FNU Rahul
+date: 2026-11-08
+tags:
+  - attack.defense-evasion
+  - attack.t1070.001
+logsource:
+  product: windows
+  service: eventlog   # 1102 is written by the Eventlog service, not Security-Auditing
+detection:
+  selection:
+    EventID: 1102
+    Provider_Name: Microsoft-Windows-Eventlog
+  condition: selection
+falsepositives:
+  - Planned log maintenance (should be rare and documented in a change ticket)
+level: high
