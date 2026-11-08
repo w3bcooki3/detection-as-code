@@ -1,4 +1,6 @@
 .samples/
 tests/logs/
 build/
+out/
+.work/
 __pycache__/
