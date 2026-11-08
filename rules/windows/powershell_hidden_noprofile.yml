@@ -2,7 +2,7 @@ title: Hidden PowerShell Launched Without Profile
 id: 6e1b4d7a-9c2f-4a8e-b3d6-1f0e9c8b7a04
 status: test
 description: Detects PowerShell started with a hidden window and no profile, a pattern used by Meterpreter, Cobalt Strike and many droppers.
-author: FNU Rahul
+author: w3bcooki3
 date: 2026-11-08
 tags:
   - attack.execution
