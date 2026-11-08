@@ -1,0 +1,24 @@
+name: detections
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install Chainsaw and pySigma
+        run: |
+          curl -sSL -o cs.tgz https://github.com/WithSecureLabs/chainsaw/releases/download/v2.10.1/chainsaw_x86_64-unknown-linux-gnu.tar.gz
+          tar xzf cs.tgz
+          pip install pyyaml pysigma pysigma-backend-splunk pysigma-backend-elasticsearch pysigma-pipeline-sysmon pysigma-pipeline-windows
+      - name: Fetch attack and clean test logs
+        run: python scripts/fetch_logs.py
+      - name: Test every rule against attack and clean logs
+        run: python scripts/run_tests.py chainsaw/chainsaw chainsaw/mappings/sigma-event-logs-all.yml
+      - name: Publish queries and ATT&CK layer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: detection-build, path: build/ }
