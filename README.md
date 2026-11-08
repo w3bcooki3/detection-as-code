@@ -1,24 +1,41 @@
 # SOC in a repo
 
-A working mini-SOC that runs entirely on GitHub, for free. Open an issue with a Windows log and a bot detects the attack, enriches what it finds with threat intel, applies a response playbook and posts an incident report.
+A free mini-SOC that runs entirely on GitHub. Open an issue, and a bot investigates Windows logs or suspicious indicators, enriches what it finds with threat intel, applies a response playbook and posts an incident report. No server, no SIEM, no install.
 
-![detections](https://github.com/w3bcooki3/detection-as-code/actions/workflows/detections.yml/badge.svg)
+![detections](https://github.com/w3bcooki3/detection-as-code/actions/workflows/detections.yml/badge.svg) ![license](https://img.shields.io/badge/license-MIT-blue)
 
-## Try it (about two minutes)
+| | What you give it | What you get back |
+|---|---|---|
+| **Investigate a Windows log** | A zip of `.evtx` logs from a PC (one PowerShell script collects them) | Incident report: verified and community detections, ATT&CK techniques, enriched indicators, severity, routing, response steps |
+| **Look up indicators** | IPs, domains, URLs or hashes from a phishing email or alert, defanged or not | Verdict table from VirusTotal, AbuseIPDB, MalwareBazaar, ThreatFox and URLhaus, plus next steps |
 
-1. Go to **[New investigation](https://github.com/w3bcooki3/detection-as-code/issues/new?template=investigate.yml)**
-2. Pick a sample attack, for example *Mimikatz stealing passwords from LSASS*
-3. Submit. The bot replies with an incident report: timeline, ATT&CK techniques, enriched indicators, severity, routing and response steps
+## Try the demo
 
-Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES). You can also attach your own zipped `.evtx` from a lab. This repo is public, so never upload logs from a real company.
+1. **[Investigate a sample attack](https://github.com/w3bcooki3/detection-as-code/issues/new?template=investigate.yml)**: pick *Mimikatz stealing passwords from LSASS* and submit
+2. **[Look up indicators](https://github.com/w3bcooki3/detection-as-code/issues/new?template=lookup.yml)**: paste a few IPs or domains and submit
+
+The bot replies on the issue in a few minutes. Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES). This demo repo is public, so never paste real company data here.
+
+## Use it for real (private copy, about 10 minutes)
+
+1. Click **Use this template > Create a new repository** and choose **Private**. Your logs and cases stay private.
+2. Create free API keys at [VirusTotal](https://www.virustotal.com), [AbuseIPDB](https://www.abuseipdb.com) and [abuse.ch](https://auth.abuse.ch), then add them under **Settings > Secrets and variables > Actions** as `VT_API_KEY`, `ABUSEIPDB_API_KEY` and `ABUSECH_AUTH_KEY`.
+3. On the Windows PC you want to check, download [`collect.ps1`](collect.ps1) and run it in PowerShell as administrator:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\collect.ps1 -Days 3
+   ```
+   It exports the last 3 days of Security, System, Sysmon, PowerShell and Defender logs to a zip on the Desktop. It only reads logs and changes nothing.
+4. In your private copy, open **Issues > New issue > Investigate a Windows log**, choose **My own log**, drag the zip in and submit.
+
+Private repos get free GitHub Actions minutes every month, which covers hundreds of investigations.
 
 ## Real use case: a password-theft alert at 2 AM
 
-**The situation.** A SOC analyst on night shift gets an EDR alert from a laptop: `rundll32.exe` touched LSASS memory. The file is a signed Windows binary, so the antivirus says nothing. Is this an attack or noise?
+**The situation.** A SOC analyst on night shift gets an EDR alert from a laptop: `rundll32.exe` touched LSASS memory. The file is a signed Windows binary, so the antivirus says nothing. Attack or noise?
 
-**Manually,** the analyst would pull the logs, read the process command line, copy hashes into VirusTotal and MalwareBazaar one by one, look up the ATT&CK technique, decide the severity, find the right runbook and write up the ticket. That's 20 to 30 minutes, at 2 AM, while the attacker keeps moving.
+**Manually,** the analyst pulls the logs, reads the command line, copies hashes into VirusTotal and MalwareBazaar one by one, looks up the ATT&CK technique, decides the severity, finds the runbook and writes up the ticket. Roughly 20 to 30 minutes, at 2 AM.
 
-**With this repo,** the analyst opens an investigation with the exported log. This is an excerpt of the real report the bot posted on [issue #3](https://github.com/w3bcooki3/detection-as-code/issues/3), 17 seconds later:
+**With the bot,** the analyst opens an investigation with the exported log. An excerpt of the real report it posted on [issue #3](https://github.com/w3bcooki3/detection-as-code/issues/3), 17 seconds later:
 
 > **Incident report: CRITICAL**
 >
@@ -31,111 +48,105 @@ Sample attacks are real recordings from [EVTX-ATTACK-SAMPLES](https://github.com
 >
 > **Threat intel:** `rundll32.exe` hash, VirusTotal **0/75 engines flag it**, not in MalwareBazaar
 >
-> *Clean file hashes here usually mean living off the land: a legitimate Windows binary used for something malicious. The behaviour is the threat, not the file.*
+> *Clean file hashes usually mean living off the land: a legitimate Windows binary used for something malicious. The behaviour is the threat, not the file.*
 >
 > **Recommended response:** isolate the host with your EDR, reset passwords for every account that logged on (starting with admins), hunt for the same command line on other hosts, watch for new logons from these accounts for 72 hours.
->
-> Labels added: `severity: critical` `verdict: malicious` `attack: T1003.001`
 
-**Why it matters.** A hash lookup alone would have called this clean (0/75). The detection rule caught the *behaviour*, the playbook turned it into a critical case with clear next steps, and the analyst went straight to containment instead of research.
+**Why it matters.** A hash lookup alone would have called this clean. The detection caught the *behaviour*, the playbook made it a critical case with clear next steps, and the analyst went straight to containment.
 
 | | Manual triage | With the bot |
 |---|---|---|
 | Time to a verdict | 20 to 30 minutes | under a minute |
-| Threat intel lookups | copy and paste, one site at a time | automatic, every indicator |
-| Severity and routing | analyst judgment at 2 AM | consistent, from the playbook |
+| Threat intel lookups | one site at a time | automatic, every indicator |
+| Severity and routing | judgment at 2 AM | consistent, from the playbook |
 | Write-up | typed by hand | posted on the case, ready for handoff |
-
-## What it can and can't do
-
-### Capabilities
-
-| Area | What it does today |
-|---|---|
-| Input | A Windows event log (`.evtx`): one of 5 built-in attack samples, or your own lab log uploaded as a zip |
-| Log types | Sysmon (process creation, process access, network, DNS) and the Windows Security and System logs |
-| Detection | 4 tested Sigma rules covering 3 ATT&CK techniques: LSASS credential dumping (T1003.001), hidden PowerShell (T1059.001), log clearing (T1070.001) |
-| Indicator extraction | File hashes (SHA256), IP addresses, domains, accounts and process names from the matching events and the same processes elsewhere in the log |
-| Enrichment | VirusTotal (files, IPs, domains), AbuseIPDB (IPs), MalwareBazaar (hashes), ThreatFox (IPs, domains) |
-| Decision | Severity from the playbook and rule level, raised one step when threat intel confirms something malicious |
-| Response | Routing (who handles it and how fast) plus containment steps per technique, from `playbooks/response.yml` |
-| Case handling | Posts the report, labels severity, verdict and technique, auto-closes benign cases |
-| Quality | Every rule is tested against real attack logs on every push, plus a smoke test of the bot |
-| Speed and cost | A report in under a minute, on free GitHub Actions and free API tiers |
-
-### Limitations
-
-- **Windows only.** No Linux, macOS, cloud (AWS, Azure, Microsoft 365), firewall, proxy or DNS server logs yet.
-- **Narrow coverage.** 4 rules for 3 techniques. Most attacks will come back as "no findings", which means "not covered", not "safe".
-- **Not real time.** Someone has to export a log and open an issue. It does not connect to a SIEM or EDR or watch live events.
-- **Recommends, does not act.** It never isolates hosts, disables accounts or blocks indicators. A human does that, by design.
-- **Free API limits.** VirusTotal allows 4 lookups a minute, so the bot caps each case at 8 lookups and checks at most 4 hashes. Large logs get partial enrichment.
-- **Indicators depend on the log.** If the log has no Sysmon process-creation events, there are no hashes to check (the Mimikatz sample is an example).
-- **Simple severity logic.** No correlation across cases, no deduplication, no asset or user context such as "this is a domain controller".
-- **Public by design.** Issues and uploads are visible to everyone, so it is for lab and sample data only, never real company logs.
-- **Upload limits.** One zipped `.evtx`, 20 MB max, 25 investigations a day.
-
-### Roadmap
-
-- More rules: RDP brute force, new service installs, scheduled tasks, encoded PowerShell, shadow copy deletion
-- Linux auth logs and Microsoft 365 sign-in logs
-- A metrics page: cases per day, time to report, verdict mix
-- Correlation: link cases that share a host, account or indicator
-- Notifications to Slack or Teams for critical cases
 
 ## How it works
 
 ```mermaid
 flowchart TD
-  A["Issue opened<br/>sample attack or uploaded log"] --> B["Detection<br/>Sigma rules run by Chainsaw"]
-  B -- "no rule fires" --> Z["Report: benign<br/>auto-close"]
-  B -- "rules fire" --> C["Extract indicators<br/>hashes, IPs, domains, accounts"]
-  C --> D["Enrichment<br/>VirusTotal, AbuseIPDB, MalwareBazaar, ThreatFox"]
-  D --> E["Playbook<br/>severity, routing, response steps per ATT&CK technique"]
-  E --> F["Incident report posted<br/>labels: severity, verdict, technique"]
-  R["Rule change pushed"] --> T{"Test gate<br/>every rule x every attack log"}
+  A["Issue opened"] --> M{"Which form?"}
+  M -- "Investigate a log" --> B["Detection with Chainsaw<br/>4 verified rules + 2,400+ SigmaHQ rules"]
+  M -- "Look up indicators" --> P["Refang and classify<br/>IPs, domains, URLs, hashes"]
+  B -- "nothing matches" --> Z["Report: no detections<br/>auto-close"]
+  B -- "matches" --> C["Extract indicators<br/>hashes, IPs, domains, accounts"]
+  C --> D["Enrichment<br/>VirusTotal, AbuseIPDB, MalwareBazaar, ThreatFox, URLhaus"]
+  P --> D
+  D --> E["Playbook<br/>severity, routing, response steps<br/>per technique, or per tactic as a fallback"]
+  E --> F["Report posted on the issue<br/>labels: severity, verdict, technique"]
+  R["Rule change pushed"] --> T{"Test gate<br/>every verified rule x every attack log"}
   T -- "missed attack or false alarm" --> X["Build fails"]
   T -- "pass" --> B
 ```
 
-Two loops:
+**Two tiers of detection.** *Verified* rules live in this repo and must pass the test gate: each one has to catch a real attack recording and stay silent on everything else. *Community* rules are the SigmaHQ Windows rule set, pulled fresh on every run for broad coverage. Reports show them separately, and community hits alone can raise a case to *high* at most, never *critical*.
 
-- **Response loop.** Every issue is a case. Detection, enrichment, playbook and report run in GitHub Actions with no server.
-- **Engineering loop.** Every rule must catch a real attack and stay silent on everything else before it can reach the bot. 4 rules x 8 logs = 32 checks on every push.
+## What it can and can't do
+
+### Capabilities
+
+| Area | Today |
+|---|---|
+| Input | Zip of up to 10 `.evtx` files (25 MB), one of 5 sample attacks, or a list of indicators |
+| Collection | `collect.ps1` exports Security, System, Sysmon, PowerShell and Defender logs for the last N days |
+| Detection | 4 verified rules (3 ATT&CK techniques, tested in CI) + 2,400+ SigmaHQ community rules |
+| Indicators | SHA256 hashes, IPs, domains and accounts from matching events; refangs `hxxp` and `[.]` in lookups |
+| Enrichment | VirusTotal, AbuseIPDB, MalwareBazaar, ThreatFox, URLhaus (free tiers) |
+| Decision | Severity from the playbook and rule level, raised one step when threat intel confirms something malicious |
+| Response | Routing and containment steps for each technique, with a fallback for each ATT&CK tactic, from `playbooks/response.yml` |
+| Case handling | Report on the issue, severity, verdict and technique labels, clean cases closed automatically |
+| Quality | Verified rules tested against real attack logs on every push, plus a smoke test of the bot |
+| Cost | $0: free GitHub Actions and free API tiers |
+
+### Limitations
+
+- **Windows only.** No Linux, macOS, cloud (AWS, Azure, Microsoft 365), firewall or proxy logs yet.
+- **Detection depends on what Windows logged.** Without Sysmon, or with process-creation auditing (event 4688) turned off, many rules have nothing to match. "No detections" means no rule matched, not that the PC is clean.
+- **Community rules need review.** SigmaHQ rules are broad and some fire on normal admin activity. That's why they sit in their own tier.
+- **Not real time.** Someone runs the collector and opens an issue. It does not connect to a SIEM or EDR.
+- **Recommends, does not act.** It never isolates hosts, disables accounts or blocks indicators. A human decides, by design.
+- **Free API limits.** VirusTotal allows 4 lookups a minute, so each log case checks at most 8 lookups and each indicator lookup at most 10 indicators.
+- **Simple severity logic.** No correlation across cases and no asset context such as "this is a domain controller".
+- **Public demo.** Anything posted to this repo is public. Real data belongs in a private copy.
+
+### Roadmap
+
+- More verified rules: RDP brute force, new services, scheduled tasks, shadow copy deletion
+- Linux auth logs and Microsoft 365 sign-in logs
+- Metrics page: cases per day, time to report, verdict mix
+- Correlation between cases that share a host, account or indicator
+- Slack or Teams alerts for critical cases
+
+## What the testing caught
+
+- **Blind rule.** The first log-cleared rule never fired. Event 1102 is written by the Eventlog provider, not Security-Auditing, so the log source was wrong. Fixed with `service: eventlog` and `Provider_Name`.
+- **The same gap in the community tier.** SigmaHQ's audit-log-cleared rule uses `service: security`, which Chainsaw's default mapping limits to the Security-Auditing provider, so it does not fire on the 1102 sample. The verified rule does. This is the reason for having a tested tier at all.
+- **Mislabelled sample.** The LSASS rule fired on a sample labelled "discovery". The hit was `D:\m.exe` (Meterpreter) opening LSASS with `0x1410`, a real credential theft. The rule was right and the sample became a required catch.
 
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `rules/` | Sigma detection rules, tagged with MITRE ATT&CK |
-| `playbooks/response.yml` | Response playbook: severity, routing and containment steps per technique |
-| `scripts/triage.py` | The bot: detect, extract indicators, enrich, apply playbook, write the report |
-| `scripts/run_tests.py` | Test gate for the rules, plus Splunk and Elastic query conversion and an ATT&CK layer |
-| `tests/expected.yml` | Which rule must fire on which attack log |
-| `.github/workflows/triage.yml` | Runs the bot when an investigation issue is opened |
-| `.github/workflows/detections.yml` | Runs the test gate and a smoke test of the bot on every push |
-
-## Current detections
-
-| Rule | ATT&CK | Playbook severity |
-|---|---|---|
-| LSASS memory dump via comsvcs.dll MiniDump | T1003.001 | critical |
-| Suspicious process access to LSASS | T1003.001 | critical |
-| Hidden PowerShell without profile | T1059.001 | high |
-| Security event log cleared (1102) | T1070.001 | high |
-
-## What the test gate caught
-
-- **Blind rule.** The first log-cleared rule never fired. Event 1102 is written by the Eventlog provider, not Security-Auditing, so the log source was wrong.
-- **Mislabelled sample.** The LSASS rule fired on a sample labelled "discovery". The hit was `D:\m.exe` (Meterpreter) opening LSASS with `0x1410`, a real credential theft. The rule was right and became a required catch.
+| `collect.ps1` | Windows log collector: exports and zips the logs the bot needs |
+| `rules/` | Verified Sigma rules, tagged with MITRE ATT&CK |
+| `playbooks/response.yml` | Severity, routing and containment steps per technique and per tactic |
+| `scripts/triage.py` | The bot: detection, indicator extraction, enrichment, playbook, report |
+| `scripts/run_tests.py` | Test gate for verified rules, plus Splunk and Elastic query conversion and an ATT&CK layer |
+| `tests/` | Which verified rule must fire on which attack log |
+| `.github/ISSUE_TEMPLATE/` | The two forms: investigate a log, look up indicators |
+| `.github/workflows/` | `triage.yml` runs the bot on new issues, `detections.yml` runs the test gate on every push |
 
 ## Guard rails
 
-- At most 25 investigations a day, so nobody can burn the free API quotas
+- At most 25 cases a day, so nobody can burn the free API quotas
 - Private IP addresses are never sent to threat intel services
-- Uploaded files: zip only, one `.evtx`, 20 MB cap, no path traversal
+- Uploads: zip only, up to 10 `.evtx` files, 25 MB compressed and 200 MB uncompressed, file names sanitised
 - The issue body is parsed as data and never executed
 
-## Setup for your own copy
+## Credits
 
-Fork it, then add free API keys under **Settings > Secrets and variables > Actions**: `VT_API_KEY` (VirusTotal), `ABUSEIPDB_API_KEY` (AbuseIPDB), `ABUSECH_AUTH_KEY` (abuse.ch). Without keys the bot still detects and reports, and marks enrichment as skipped.
+Detection engine [Chainsaw](https://github.com/WithSecureLabs/chainsaw) by WithSecure. Community rules from [SigmaHQ](https://github.com/SigmaHQ/sigma) under the Detection Rule License, downloaded at run time and not redistributed here. Attack recordings from [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES) by Samir Bousseaden.
+
+## License
+
+MIT for the code in this repo. See [LICENSE](LICENSE).
