@@ -1,18 +1,18 @@
 name: Investigate a Windows log
-description: Run the detection rules on a sample attack (or your own lab log) and get an incident report in about two minutes.
+description: Scan Windows event logs with verified and SigmaHQ rules and get an incident report in a few minutes.
 title: "Investigate: "
 labels: ["investigate"]
 body:
   - type: markdown
     attributes:
       value: |
-        The bot scans the log with this repo's Sigma rules, enriches what it finds with threat intel, and replies with an incident report.
-        **This repo is public. Never upload logs from a real company or anything with personal data.**
+        The bot scans the logs with this repo's verified rules plus the SigmaHQ community rules, enriches what it finds with threat intel, and replies with an incident report.
+        **On the public demo, use sample attacks only.** For real logs, use your own private copy of this repo (see the README).
   - type: dropdown
     id: sample
     attributes:
       label: Sample attack
-      description: Pick a recorded attack from EVTX-ATTACK-SAMPLES, or choose "My own log" and attach one below.
+      description: Pick a recorded attack from EVTX-ATTACK-SAMPLES, or choose "My own log" and attach a zip below.
       options:
         - Mimikatz stealing passwords from LSASS
         - LSASS memory dump with comsvcs.dll
@@ -26,4 +26,4 @@ body:
     id: upload
     attributes:
       label: Your own log (optional)
-      description: Drag in one .evtx file, zipped. Lab or test logs only, 20 MB max.
+      description: Drag in the zip made by collect.ps1, or any zip of up to 10 .evtx files (25 MB max).
