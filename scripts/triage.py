@@ -448,7 +448,7 @@ def log_mode(body, t0):
     L.append(ioc_table(rows) if rows else "No file or network indicators in the matching events.")
     if iocs["user"]: L.append(f"\n**Accounts involved:** {', '.join(f'`{u}`' for u in sorted(iocs['user'])[:10])}")
     if any(r["kind"] == "file hash" and r["checked"] and r["score"] < 10 for r in rows):
-        L.append("\n> Clean file hashes usually mean *living off the land*: a legitimate Windows binary used for something malicious. The behaviour is the threat, not the file.")
+        L.append("\n> Note: the file hashes came back clean. That's normal when an attacker uses built-in Windows tools (living off the land), so don't close this on the hash result alone.")
     L.append("\n### Recommended response\n")
     steps, seen = [], set()
     for pb in techs.values():
