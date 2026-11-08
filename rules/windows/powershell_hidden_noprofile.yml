@@ -1,0 +1,27 @@
+title: Hidden PowerShell Launched Without Profile
+id: 6e1b4d7a-9c2f-4a8e-b3d6-1f0e9c8b7a04
+status: test
+description: Detects PowerShell started with a hidden window and no profile, a pattern used by Meterpreter, Cobalt Strike and many droppers.
+author: FNU Rahul
+date: 2026-11-08
+tags:
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection_img:
+    Image|endswith: '\powershell.exe'
+  selection_hidden:
+    CommandLine|contains:
+      - '-w hidden'
+      - '-windowstyle hidden'
+  selection_noprofile:
+    CommandLine|contains:
+      - '-nop'
+      - '-noprofile'
+  condition: all of selection_*
+falsepositives:
+  - Some admin and deployment scripts. Tune by parent process.
+level: medium
