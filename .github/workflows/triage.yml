@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   investigate:
-    if: contains(github.event.issue.body, '### Sample attack')
+    if: contains(github.event.issue.body, '### Sample attack') || contains(github.event.issue.body, '### Indicators')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -22,14 +22,14 @@ jobs:
       - name: Daily cap (protects the free API quotas)
         id: cap
         run: |
-          n=$(gh issue list -R "$REPO" --state all --search "in:body \"### Sample attack\" created:>=$(date -u +%F)" --json number --jq length)
+          n=$(gh issue list -R "$REPO" --state all --search "created:>=$(date -u +%F)" --json number --jq length)
           if [ "$n" -gt 25 ]; then
             gh issue comment "$ISSUE" -R "$REPO" --body "Daily limit of 25 investigations reached. Please try again tomorrow (UTC)."
             echo "capped=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Acknowledge
         if: steps.cap.outputs.capped != 'true'
-        run: gh issue comment "$ISSUE" -R "$REPO" --body "Investigating. The incident report will be posted here in about two minutes."
+        run: gh issue comment "$ISSUE" -R "$REPO" --body "Investigating. The report will be posted here in a few minutes."
       - uses: actions/setup-python@v5
         if: steps.cap.outputs.capped != 'true'
         with: { python-version: "3.12" }
@@ -39,6 +39,7 @@ jobs:
           curl -sSL -o cs.tgz https://github.com/WithSecureLabs/chainsaw/releases/download/v2.10.1/chainsaw_x86_64-unknown-linux-gnu.tar.gz
           tar xzf cs.tgz
           pip install pyyaml
+          git clone --depth 1 -q https://github.com/SigmaHQ/sigma .sigmahq
       - name: Detect, enrich, apply playbook
         if: steps.cap.outputs.capped != 'true'
         env:
