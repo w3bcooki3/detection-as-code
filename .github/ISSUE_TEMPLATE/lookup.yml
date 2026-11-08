@@ -1,0 +1,18 @@
+name: Look up indicators
+description: Check IPs, domains, URLs and file hashes against threat intel and get a verdict table.
+title: "Lookup: "
+labels: ["lookup"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste indicators from a phishing email, an alert or a threat report. Defanged values like `evil[.]com` or `hxxps://` are fine.
+        Up to 10 indicators per lookup. Private IP addresses are never sent to threat intel services.
+  - type: textarea
+    id: indicators
+    attributes:
+      label: Indicators
+      description: One per line, or pasted in any text. IPs, domains, URLs, MD5, SHA1 or SHA256 hashes.
+      render: text
+    validations:
+      required: true
