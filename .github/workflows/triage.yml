@@ -50,7 +50,7 @@ jobs:
         if: steps.cap.outputs.capped != 'true'
         run: |
           gh issue comment "$ISSUE" -R "$REPO" --body-file out/report.md
-          IFS=',' read -ra L < out/labels.txt
+          IFS=',' read -ra L < out/labels.txt || true
           for l in "${L[@]}"; do
             gh label create "$l" -R "$REPO" --force --color "$(case "$l" in *critical*) echo B60205;; *high*) echo D93F0B;; *medium*) echo FBCA04;; *benign*|*info*) echo 0E8A16;; *) echo 5319E7;; esac)" >/dev/null
             gh issue edit "$ISSUE" -R "$REPO" --add-label "$l"
