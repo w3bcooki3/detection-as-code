@@ -1,0 +1,13 @@
+# Which rule MUST fire on which attack log.
+# Every other rule/log pair must stay silent (that's the false-positive test).
+lsass_dump_comsvcs_minidump:
+  - comsvcs_minidump.evtx
+lsass_access_credential_theft:
+  - mimikatz_sekurlsa.evtx
+  - discovery_meterpreter_ps.evtx   # D:\m.exe (Meterpreter) opened LSASS with 0x1410
+security_log_cleared:
+  - security_log_cleared.evtx
+  - discovery_bloodhound.evtx      # lab operator cleared the log before recording (real 1102)
+  - discovery_psloggedon.evtx      # same, verified by hand
+powershell_hidden_noprofile:
+  - psexec_meterpreter.evtx
