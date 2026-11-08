@@ -193,9 +193,15 @@ def call(url, headers, data=None):
 def vt(kind, value):
     if not VT: return None
     ident = base64.urlsafe_b64encode(value.encode()).decode().strip("=") if kind == "urls" else urllib.parse.quote(value, safe="")
-    r = call(f"https://www.virustotal.com/api/v3/{kind}/{ident}", {"x-apikey": VT})
-    time.sleep(16)  # free tier: 4 requests a minute
-    if "_error" in r: return {"verdict": "not seen by VirusTotal" if "404" in r["_error"] else "lookup failed", "score": 0}
+    for attempt in range(2):
+        r = call(f"https://www.virustotal.com/api/v3/{kind}/{ident}", {"x-apikey": VT})
+        time.sleep(16)  # free tier: 4 requests a minute
+        if "429" not in r.get("_error", ""): break
+        time.sleep(30)  # rate limited: wait and retry once
+    if "_error" in r:
+        if "404" in r["_error"]: return {"verdict": "not seen by VirusTotal", "score": 0}
+        code = re.search(r"HTTP Error (\d+)", r["_error"])
+        return {"verdict": f"lookup failed ({'HTTP ' + code.group(1) if code else 'network error'})", "score": 0}
     s = r.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
     bad = s.get("malicious", 0) + s.get("suspicious", 0)
     total = sum(s.values()) or 1
@@ -225,9 +231,13 @@ def threatfox(value):
     if not ABUSECH: return None
     r = call("https://threatfox-api.abuse.ch/api/v1/", {"Auth-Key": ABUSECH, "Content-Type": "application/json"},
              json.dumps({"query": "search_ioc", "search_term": value}).encode())
-    if r.get("query_status") == "ok":
-        mal = (r.get("data") or [{}])[0].get("malware_printable", "malware")
-        return {"verdict": f"ThreatFox: {mal}", "score": 100}
+    # search_ioc is a substring search ("google.com" matches any URL on google.com), so keep exact matches only
+    v = value.lower()
+    rows = r.get("data") if r.get("query_status") == "ok" and isinstance(r.get("data"), list) else []
+    exact = [d for d in rows if isinstance(d, dict) and
+             (str(d.get("ioc", "")).lower() == v or str(d.get("ioc", "")).lower().startswith(v + ":"))]
+    if exact:
+        return {"verdict": f"ThreatFox: {exact[0].get('malware_printable', 'malware')}", "score": 100}
     return {"verdict": "not in ThreatFox", "score": 0}
 
 
@@ -426,9 +436,14 @@ def log_mode(body, t0):
 
     if techs:
         L.append("### What it means\n")
+        generic = defaultdict(list)
         for t, pb in techs.items():
-            label = pb.get("tactic", "")
-            L.append(f"**{t}{' ' + pb['name'] if not pb.get('generic') else ''}** ({label}{', generic playbook' if pb.get('generic') else ''})  \n{pb['why']}\n")
+            if pb.get("generic"):
+                generic[(pb.get("tactic", ""), pb["why"])].append(t)
+            else:
+                L.append(f"**{t} {pb['name']}** ({pb.get('tactic', '')})  \n{pb['why']}\n")
+        for (tactic, why), ts in generic.items():
+            L.append(f"**{tactic}: {', '.join(ts)}** (generic playbook for this tactic)  \n{why}\n")
     L.append("### Indicators and threat intel\n")
     L.append(ioc_table(rows) if rows else "No file or network indicators in the matching events.")
     if iocs["user"]: L.append(f"\n**Accounts involved:** {', '.join(f'`{u}`' for u in sorted(iocs['user'])[:10])}")
