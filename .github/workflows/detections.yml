@@ -18,6 +18,12 @@ jobs:
         run: python scripts/fetch_logs.py
       - name: Test every rule against attack and clean logs
         run: python scripts/run_tests.py chainsaw/chainsaw chainsaw/mappings/sigma-event-logs-all.yml
+      - name: Smoke-test the triage bot
+        env: { CHAINSAW: chainsaw/chainsaw, MAPPING: chainsaw/mappings/sigma-event-logs-all.yml }
+        run: |
+          printf '### Sample attack\n\nMimikatz stealing passwords from LSASS\n' > body.txt
+          ISSUE_BODY="$(cat body.txt)" python scripts/triage.py > /dev/null
+          grep -q "severity: critical" out/labels.txt && echo "triage bot OK"
       - name: Publish queries and ATT&CK layer
         if: always()
         uses: actions/upload-artifact@v4
